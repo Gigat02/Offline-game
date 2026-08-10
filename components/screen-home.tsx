@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/app-shell"
+import { ShareApp } from "@/components/share-app"
 
 export function ScreenHome({
   onCreate,
@@ -45,6 +46,9 @@ export function ScreenHome({
           <Button size="lg" variant="outline" disabled={!valid} onClick={() => onJoin(name.trim())}>
             Unisciti a una partita
           </Button>
+        </div>
+        <div className="mt-3 border-t border-border pt-3">
+          <ShareApp />
         </div>
       </Card>
 
