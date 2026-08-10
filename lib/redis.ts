@@ -2,7 +2,11 @@ import { Redis } from "@upstash/redis"
 
 // Client Redis condiviso per il signaling online (strada A).
 // Usato solo per lo scambio iniziale di offerta/risposta WebRTC.
-export const redis = Redis.fromEnv()
+// Usa le variabili KV_* fornite dall'integrazione (fallback su UPSTASH_* se presenti).
+export const redis = new Redis({
+  url: process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL ?? "",
+  token: process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN ?? "",
+})
 
 // Prefissi delle chiavi + TTL brevi: i dati di signaling sono effimeri.
 export const ROOM_TTL_SECONDS = 60 * 30 // 30 min: la stanza vive per la sessione
