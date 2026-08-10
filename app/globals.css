@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+}
+
+:root {
+  --radius: 1rem;
+
+  --background: oklch(0.16 0.035 285);
+  --foreground: oklch(0.97 0.008 285);
+
+  --card: oklch(0.21 0.045 285);
+  --card-foreground: oklch(0.97 0.008 285);
+
+  --muted: oklch(0.28 0.04 285);
+  --muted-foreground: oklch(0.72 0.03 285);
+
+  --primary: oklch(0.62 0.25 300);
+  --primary-foreground: oklch(0.98 0.01 300);
+
+  --accent: oklch(0.87 0.2 120);
+  --accent-foreground: oklch(0.2 0.05 285);
+
+  --border: oklch(0.32 0.05 285);
+  --ring: oklch(0.62 0.25 300);
+  --destructive: oklch(0.62 0.22 20);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  background-color: var(--color-background);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  overscroll-behavior-y: none;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* subtle scrollbar for lists */
+.scroll-slim::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
