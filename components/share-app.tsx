@@ -8,9 +8,12 @@ export function ShareApp() {
   const [open, setOpen] = useState(false)
   const [url, setUrl] = useState("")
   const [copied, setCopied] = useState(false)
+  const [isPreview, setIsPreview] = useState(false)
 
   useEffect(() => {
     setUrl(window.location.origin)
+    // L'anteprima di v0 richiede il login: avvisa se non e' un URL pubblico.
+    setIsPreview(/vusercontent\.net|v0\.dev|localhost|127\.0\.0\.1/.test(window.location.hostname))
   }, [])
 
   async function copyLink() {
@@ -42,10 +45,18 @@ export function ShareApp() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-1 text-center font-display text-xl font-bold">Scarica l&apos;app</h3>
-            <p className="mx-auto mb-5 max-w-xs text-center text-sm text-muted-foreground text-pretty">
+            <p className="mx-auto mb-4 max-w-xs text-center text-sm text-muted-foreground text-pretty">
               Gli altri giocatori inquadrano questo codice per aprire l&apos;app. Poi installatela e
               connettetevi allo stesso hotspot Wi-Fi.
             </p>
+
+            {isPreview && (
+              <p className="mx-auto mb-4 max-w-xs rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-center text-xs text-accent-foreground text-pretty">
+                Stai usando l&apos;anteprima: questo codice chiede il login. Premi{" "}
+                <span className="font-semibold">Publish</span> per pubblicare l&apos;app, poi aprila
+                dall&apos;URL pubblico: il QR funzionera&apos; senza login.
+              </p>
+            )}
 
             {url && (
               <div className="mb-5 flex justify-center">
