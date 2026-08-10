@@ -101,6 +101,47 @@ export class HostNet {
     return peer.id
   }
 
+  // --- Flusso ONLINE (strada A) ---
+  // L'host riceve un'offerta creata dal guest e produce la risposta.
+  // Qui l'host NON crea il data channel: lo riceve via ondatachannel.
+  async answerOffer(peerId: string, offerCode: string): Promise<string> {
+    const pc = new RTCPeerConnection(RTC_CONFIG)
+    const peer: HostPeer = { id: peerId, pc, channel: null as unknown as RTCDataChannel }
+
+    pc.ondatachannel = (e) => {
+      const channel = e.channel
+      peer.channel = channel
+      channel.onopen = () => this.cb.onPeerOpen(peerId)
+      channel.onclose = () => {
+        this.peers.delete(peerId)
+        this.cb.onPeerClose(peerId)
+      }
+      channel.onmessage = (ev) => {
+        try {
+          this.cb.onAction(peerId, JSON.parse(ev.data) as ClientAction)
+        } catch {
+          /* ignore malformed */
+        }
+      }
+    }
+    pc.onconnectionstatechange = () => {
+      if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
+        if (this.peers.has(peerId)) {
+          this.peers.delete(peerId)
+          this.cb.onPeerClose(peerId)
+        }
+      }
+    }
+
+    const offer = decodeSignal(offerCode)
+    await pc.setRemoteDescription(offer)
+    const answer = await pc.createAnswer()
+    await pc.setLocalDescription(answer)
+    await waitIceComplete(pc)
+    this.peers.set(peerId, peer)
+    return encodeSignal(pc.localDescription!)
+  }
+
   cancelPending() {
     if (this.pending) {
       try {
@@ -184,6 +225,41 @@ export class GuestNet {
     await pc.setLocalDescription(answer)
     await waitIceComplete(pc)
     return encodeSignal(pc.localDescription!)
+  }
+
+  // --- Flusso ONLINE (strada A) ---
+  // Il guest CREA l'offerta e il proprio data channel; l'host rispondera'.
+  async createOffer(): Promise<string> {
+    const pc = new RTCPeerConnection(RTC_CONFIG)
+    this.pc = pc
+    const channel = pc.createDataChannel("game", { ordered: true })
+    this.channel = channel
+    channel.onopen = () => this.cb.onOpen()
+    channel.onclose = () => this.cb.onClose()
+    channel.onmessage = (ev) => {
+      try {
+        this.cb.onMessage(JSON.parse(ev.data) as ServerMessage)
+      } catch {
+        /* ignore */
+      }
+    }
+    pc.onconnectionstatechange = () => {
+      if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
+        this.cb.onClose()
+      }
+    }
+
+    const offer = await pc.createOffer()
+    await pc.setLocalDescription(offer)
+    await waitIceComplete(pc)
+    return encodeSignal(pc.localDescription!)
+  }
+
+  // Applica la risposta dell'host (arrivata via server) e completa la connessione.
+  async applyAnswer(answerCode: string): Promise<void> {
+    if (!this.pc) throw new Error("Nessuna offerta creata.")
+    const answer = decodeSignal(answerCode)
+    await this.pc.setRemoteDescription(answer)
   }
 
   send(action: ClientAction) {

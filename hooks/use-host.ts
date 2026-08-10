@@ -4,12 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { HostNet } from "@/lib/net"
 import { computeGlobalRanking, pickAdjective } from "@/lib/game"
 import type { GameState, Player } from "@/lib/protocol"
+import { createRoom, fetchOffers, postAnswer } from "@/lib/signaling-client"
 
 export const HOST_ID = "host"
 
 export function useHost(name: string) {
   const netRef = useRef<HostNet | null>(null)
   const submissionsRef = useRef<Record<string, string[]>>({})
+  const roomCodeRef = useRef<string | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const answeredRef = useRef<Set<string>>(new Set())
+  const [roomCode, setRoomCode] = useState<string | null>(null)
 
   const initial: GameState = {
     phase: "lobby",
@@ -76,13 +81,14 @@ export function useHost(name: string) {
     })
     netRef.current = net
     return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
       net.close()
       netRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ---- API host ----
+  // ---- API host: modalita' OFFLINE (QR/codice) ----
   const createInvite = useCallback(() => {
     if (!netRef.current) throw new Error("net non pronto")
     return netRef.current.createInvite()
@@ -91,6 +97,45 @@ export function useHost(name: string) {
   const acceptAnswer = useCallback((code: string) => {
     if (!netRef.current) throw new Error("net non pronto")
     return netRef.current.acceptAnswer(code)
+  }, [])
+
+  // ---- API host: modalita' ONLINE (codice a 6 cifre, strada A) ----
+  // Apre una stanza sul server e avvia il polling che risponde
+  // automaticamente alle offerte dei guest. Nessun secondo codice richiesto.
+  const openRoom = useCallback(async () => {
+    const { code } = await createRoom(name)
+    roomCodeRef.current = code
+    setRoomCode(code)
+
+    const poll = async () => {
+      const c = roomCodeRef.current
+      if (!c || !netRef.current) return
+      try {
+        const { offers } = await fetchOffers(c)
+        for (const offer of offers) {
+          if (answeredRef.current.has(offer.peerId)) continue
+          answeredRef.current.add(offer.peerId)
+          try {
+            const answerSdp = await netRef.current.answerOffer(offer.peerId, offer.sdp)
+            await postAnswer(c, offer.peerId, answerSdp)
+          } catch {
+            answeredRef.current.delete(offer.peerId)
+          }
+        }
+      } catch {
+        /* rete assente: riprova al prossimo tick */
+      }
+    }
+    pollRef.current = setInterval(poll, 1500)
+    void poll()
+    return code
+  }, [name])
+
+  const stopRoomPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
   }, [])
 
   const startGame = useCallback(() => {
@@ -139,8 +184,11 @@ export function useHost(name: string) {
     isHost: true as const,
     myId: HOST_ID,
     state,
+    roomCode,
     createInvite,
     acceptAnswer,
+    openRoom,
+    stopRoomPolling,
     startGame,
     submitRanking,
     nextRound,
